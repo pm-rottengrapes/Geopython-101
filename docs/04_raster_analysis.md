@@ -576,9 +576,208 @@ print("\n=== ZONAL STATISTICS FOR SLOPE ===")
 print(slope_zonal_stats.round(2))
 ```
 
-## 6. Handling NoData Values
+## 7. Multi-band Raster Analysis
 
-### Working with Missing Data
+### NDVI Calculation from Two Bands
+
+**NDVI (Normalized Difference Vegetation Index)** is calculated using Near-Infrared (NIR) and Red bands to assess vegetation health.
+
+```python
+# Create sample NIR (Band 8) and Red (Band 4) data
+def create_sample_satellite_bands(width=200, height=150):
+    """Create sample NIR and Red band data"""
+    x = np.linspace(-10, 10, width)
+    y = np.linspace(-10, 10, height)
+    X, Y = np.meshgrid(x, y)
+    
+    # Simulate NIR band (Band 8) - higher values for vegetation
+    nir_band = (
+        0.6 + 0.3 * np.exp(-(X**2 + Y**2) / 15) +  # Vegetation areas
+        0.1 * np.random.random((height, width))     # Noise
+    )
+    
+    # Simulate Red band (Band 4) - lower values for vegetation
+    red_band = (
+        0.3 + 0.1 * np.exp(-(X**2 + Y**2) / 15) +  # Less reflection in vegetation
+        0.1 * np.random.random((height, width))     # Noise
+    )
+    
+    # Ensure values are between 0 and 1 (typical for reflectance)
+    nir_band = np.clip(nir_band, 0, 1)
+    red_band = np.clip(red_band, 0, 1)
+    
+    return nir_band.astype(np.float32), red_band.astype(np.float32)
+
+# Create sample bands
+nir_data, red_data = create_sample_satellite_bands()
+
+print("=== SATELLITE BAND DATA ===")
+print(f"NIR Band shape: {nir_data.shape}")
+print(f"Red Band shape: {red_data.shape}")
+print(f"NIR range: {nir_data.min():.3f} - {nir_data.max():.3f}")
+print(f"Red range: {red_data.min():.3f} - {red_data.max():.3f}")
+
+# Calculate NDVI
+def calculate_ndvi(nir, red):
+    """Calculate NDVI from NIR and Red bands"""
+    # Avoid division by zero
+    denominator = nir + red
+    ndvi = np.where(denominator != 0, (nir - red) / denominator, 0)
+    return ndvi
+
+ndvi = calculate_ndvi(nir_data, red_data)
+
+print(f"\nNDVI range: {ndvi.min():.3f} - {ndvi.max():.3f}")
+print(f"Mean NDVI: {ndvi.mean():.3f}")
+
+# Visualize bands and NDVI
+fig, axes = plt.subplots(2, 2, figsize=(15, 12))
+
+# NIR Band
+im1 = axes[0,0].imshow(nir_data, cmap='Reds', extent=bounds)
+axes[0,0].set_title('NIR Band (B08)')
+plt.colorbar(im1, ax=axes[0,0], label='Reflectance')
+
+# Red Band
+im2 = axes[0,1].imshow(red_data, cmap='Reds', extent=bounds)
+axes[0,1].set_title('Red Band (B04)')
+plt.colorbar(im2, ax=axes[0,1], label='Reflectance')
+
+# NDVI
+im3 = axes[1,0].imshow(ndvi, cmap='RdYlGn', vmin=-1, vmax=1, extent=bounds)
+axes[1,0].set_title('NDVI (Vegetation Index)')
+plt.colorbar(im3, ax=axes[1,0], label='NDVI Value')
+
+# NDVI Classification
+ndvi_classes = np.where(ndvi < 0, 0,      # Water/bare soil
+                np.where(ndvi < 0.2, 1,   # Low vegetation
+                np.where(ndvi < 0.5, 2,   # Moderate vegetation
+                         3)))             # High vegetation
+
+class_colors = ['blue', 'brown', 'yellow', 'green']
+class_labels = ['Water/Bare', 'Low Veg', 'Moderate Veg', 'High Veg']
+from matplotlib.colors import ListedColormap
+class_cmap = ListedColormap(class_colors)
+
+im4 = axes[1,1].imshow(ndvi_classes, cmap=class_cmap, extent=bounds)
+axes[1,1].set_title('NDVI Classification')
+cbar = plt.colorbar(im4, ax=axes[1,1], ticks=[0, 1, 2, 3])
+cbar.set_ticklabels(class_labels)
+
+plt.tight_layout()
+plt.show()
+
+# NDVI Statistics
+print("\n=== NDVI ANALYSIS ===")
+for i, label in enumerate(class_labels):
+    pixel_count = np.sum(ndvi_classes == i)
+    percentage = (pixel_count / ndvi_classes.size) * 100
+    print(f"{label}: {pixel_count:,} pixels ({percentage:.1f}%)")
+```
+
+### RGB Visualization from Three Bands
+
+**True Color Composite** uses Red, Green, and Blue bands to create natural-looking images.
+
+```python
+# Create sample RGB bands
+def create_sample_rgb_bands(width=200, height=150):
+    """Create sample Red, Green, Blue band data"""
+    x = np.linspace(-10, 10, width)
+    y = np.linspace(-10, 10, height)
+    X, Y = np.meshgrid(x, y)
+    
+    # Create different patterns for each band
+    # Red band - higher in certain areas
+    red = 0.3 + 0.4 * np.exp(-((X-2)**2 + (Y-2)**2) / 10) + 0.1 * np.random.random((height, width))
+    
+    # Green band - vegetation areas
+    green = 0.4 + 0.5 * np.exp(-(X**2 + Y**2) / 15) + 0.1 * np.random.random((height, width))
+    
+    # Blue band - water-like areas
+    blue = 0.2 + 0.6 * np.exp(-((X+3)**2 + (Y-1)**2) / 8) + 0.1 * np.random.random((height, width))
+    
+    # Normalize to 0-1 range
+    red = np.clip(red, 0, 1)
+    green = np.clip(green, 0, 1)
+    blue = np.clip(blue, 0, 1)
+    
+    return red.astype(np.float32), green.astype(np.float32), blue.astype(np.float32)
+
+# Create RGB bands
+red_band, green_band, blue_band = create_sample_rgb_bands()
+
+print("=== RGB BAND DATA ===")
+print(f"Red band range: {red_band.min():.3f} - {red_band.max():.3f}")
+print(f"Green band range: {green_band.min():.3f} - {green_band.max():.3f}")
+print(f"Blue band range: {blue_band.min():.3f} - {blue_band.max():.3f}")
+
+# Create RGB composite
+def create_rgb_composite(red, green, blue, enhance=True):
+    """Create RGB composite from three bands"""
+    # Stack bands into 3D array
+    rgb = np.dstack((red, green, blue))
+    
+    if enhance:
+        # Enhance contrast (stretch to full 0-1 range)
+        for i in range(3):
+            band = rgb[:, :, i]
+            band_min, band_max = band.min(), band.max()
+            if band_max > band_min:
+                rgb[:, :, i] = (band - band_min) / (band_max - band_min)
+    
+    return rgb
+
+# Create composites
+rgb_natural = create_rgb_composite(red_band, green_band, blue_band, enhance=False)
+rgb_enhanced = create_rgb_composite(red_band, green_band, blue_band, enhance=True)
+
+# Visualize individual bands and composites
+fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+
+# Individual bands
+im1 = axes[0,0].imshow(red_band, cmap='Reds', extent=bounds)
+axes[0,0].set_title('Red Band')
+plt.colorbar(im1, ax=axes[0,0], label='Reflectance')
+
+im2 = axes[0,1].imshow(green_band, cmap='Greens', extent=bounds)
+axes[0,1].set_title('Green Band')
+plt.colorbar(im2, ax=axes[0,1], label='Reflectance')
+
+im3 = axes[0,2].imshow(blue_band, cmap='Blues', extent=bounds)
+axes[0,2].set_title('Blue Band')
+plt.colorbar(im3, ax=axes[0,2], label='Reflectance')
+
+# RGB composites
+axes[1,0].imshow(rgb_natural, extent=bounds)
+axes[1,0].set_title('Natural Color Composite')
+
+axes[1,1].imshow(rgb_enhanced, extent=bounds)
+axes[1,1].set_title('Enhanced Color Composite')
+
+# False color composite (NIR-Red-Green)
+false_color = create_rgb_composite(nir_data, red_data, green_band)
+axes[1,2].imshow(false_color, extent=bounds)
+axes[1,2].set_title('False Color Composite\n(NIR-Red-Green)')
+
+plt.tight_layout()
+plt.show()
+
+# Band statistics
+print("\n=== BAND STATISTICS ===")
+bands = {'Red': red_band, 'Green': green_band, 'Blue': blue_band, 'NIR': nir_data}
+
+for band_name, band_data in bands.items():
+    print(f"{band_name} Band:")
+    print(f"  Mean: {band_data.mean():.3f}")
+    print(f"  Std:  {band_data.std():.3f}")
+    print(f"  Min:  {band_data.min():.3f}")
+    print(f"  Max:  {band_data.max():.3f}")
+```
+
+
+
+## 8. Handling NoData Values
 
 ```python
 # Create sample data with NoData values

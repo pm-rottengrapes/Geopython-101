@@ -286,6 +286,23 @@ print(f"Countries with major cities (within 50km): {len(countries_with_major_cit
 print(f"Countries without major cities: {len(world) - len(countries_with_major_cities)}")
 ```
 
+## Spatial Relationships & Functions
+
+Understanding spatial relationships is crucial for geospatial analysis. Here's a comprehensive guide to spatial predicates and their use cases:
+
+| Spatial Predicate | Description | Use Cases | Example |
+|------------------|-------------|-----------|----------|
+| **intersects** | Geometries share at least one point | General overlap detection, finding features that touch or overlap | Roads intersecting with flood zones |
+| **within** | Geometry A is completely inside geometry B | Point-in-polygon analysis, containment queries | Cities within countries, buildings within parcels |
+| **contains** | Geometry A completely contains geometry B | Reverse containment, administrative boundaries | Countries containing cities, parks containing facilities |
+| **touches** | Geometries share boundary but no interior points | Adjacent features, boundary analysis | Adjacent land parcels, neighboring countries |
+| **crosses** | Geometries intersect but neither contains the other | Linear features crossing areas | Rivers crossing administrative boundaries |
+| **overlaps** | Geometries share some but not all points | Partial overlap analysis | Overlapping service areas, competing territories |
+| **disjoint** | Geometries share no points | Isolation analysis, gap detection | Non-adjacent properties, isolated habitats |
+| **equals** | Geometries are spatially equal | Duplicate detection, exact matching | Identical boundary definitions |
+| **covers** | Geometry A covers geometry B (includes boundary) | Coverage analysis with boundaries | Service areas covering demand points |
+| **covered_by** | Geometry A is covered by geometry B | Reverse coverage analysis | Facilities covered by service areas |
+
 ### Point-in-Polygon Operations
 
 ```python

@@ -74,7 +74,8 @@ graph LR
 
 ## 📊 Datasets Used
 
-All examples use **Natural Earth** datasets that are freely available and included with GeoPandas:
+All examples use **[Natural Earth](https://www.naturalearthdata.com/downloads/)** datasets that are freely available and included with GeoPandas:
+
 - World countries boundaries
 - Major cities and populated places
 - Physical and cultural features
@@ -153,6 +154,7 @@ After completing this workshop, you will be able to:
 
 ### 📝 Comprehensive Documentation
 Each module includes:
+
 - Clear explanations with diagrams
 - Complete code examples with comments
 - Practice problems with solutions
@@ -176,6 +178,7 @@ Each module includes:
 Ready to begin your GeoPython journey? Here's how to start:
 
 1. **Choose your environment**:
+   
    - [Google Colab](https://colab.research.google.com/) (recommended for beginners)
    - [Jupyter notebooks](https://jupyter.org/) (if you have Python installed)
    - Local Python environment (for advanced users)
@@ -191,12 +194,14 @@ Ready to begin your GeoPython journey? Here's how to start:
 ## 🤝 Community & Support
 
 ### Getting Help
+
 - **Documentation**: Each module has detailed explanations
 - **Practice Solutions**: All problems include complete solutions
 - **Error Handling**: Common issues and fixes are covered
 - **External Resources**: Links to official documentation
 
 ### Sharing Your Work
+
 - **GitHub**: Create repositories for your projects
 - **Social Media**: Share your maps and visualizations
 - **Blog Posts**: Write about your learning journey
@@ -207,12 +212,14 @@ Ready to begin your GeoPython journey? Here's how to start:
 This workshop is just the beginning! Here's what comes next:
 
 ### Immediate Next Steps
+
 1. **Complete a personal project** using the skills learned
 2. **Explore additional datasets** beyond Natural Earth
 3. **Join geospatial Python communities** online
 4. **Practice regularly** with small coding exercises
 
 ### Long-term Development
+
 - **Advanced Topics**: Machine learning, big data processing
 - **Specialization**: Remote sensing, urban planning, environmental analysis
 - **Career Development**: GIS analyst, data scientist, web developer
