@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from shapely.geometry import Point, LineString, Polygon
 import warnings
-warnings.filterwarnings('ignore')
+
 
 # Set up plotting
 plt.style.use('default')
