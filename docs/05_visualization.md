@@ -429,65 +429,391 @@ m.add_text('World Population and Major Cities',
 m
 ```
 
-## 7. Advanced Leafmap Features
+## 7. Interactive Mapping with ipyleaflet
 
-### Add Drawing Tools
+### What is ipyleaflet?
+
+**ipyleaflet** is a Jupyter widget for creating interactive maps using Leaflet.js. It provides more control and customization options compared to leafmap, making it ideal for advanced interactive applications.
 
 ```python
-# Create map with drawing tools
-m = leafmap.Map(center=[40, -100], zoom=4)
+import ipyleaflet
+from ipyleaflet import Map, Marker, Popup, GeoData, basemaps
+from ipywidgets import HTML
+import geopandas as gpd
+from shapely.geometry import Point
+```
 
-# Add drawing toolbar
-m.add_toolbar()
+### Simple Hello World Map - Nashik Focus
 
-# Add countries for reference
-m.add_gdf(
-    world,
-    layer_name='Countries',
-    fill_colors=['lightgray'],
-    line_colors=['black'],
-    line_widths=[0.3]
+```python
+# Create a simple map focused on Nashik, India
+nashik_center = [19.9975, 73.7898]  # Nashik coordinates
+
+# Create basic map
+m = Map(
+    center=nashik_center,
+    zoom=12,
+    layout={'width': '100%', 'height': '500px'}
 )
 
+# Add a marker for Nashik
+nashik_marker = Marker(
+    location=nashik_center,
+    title='Nashik, Maharashtra, India'
+)
+m.add_layer(nashik_marker)
+
+# Display the map
 m
 ```
 
-### Measure Tool
+### Adding Various Basemaps
 
 ```python
-# Add measurement capabilities
-m = leafmap.Map(center=[40, -100], zoom=4)
+# Create map with different basemap options
+m = Map(center=nashik_center, zoom=10)
+
+# Available basemaps
+print("Available basemaps:")
+for name in dir(basemaps):
+    if not name.startswith('_'):
+        print(f"  - {name}")
+
+# Switch to satellite basemap
+m.basemap = basemaps.Esri.WorldImagery
+m
+```
+
+```python
+# Try different basemaps
+m_terrain = Map(
+    center=nashik_center,
+    zoom=10,
+    basemap=basemaps.OpenTopoMap
+)
+m_terrain
+```
+
+```python
+# Street map basemap
+m_street = Map(
+    center=nashik_center,
+    zoom=12,
+    basemap=basemaps.CartoDB.Positron
+)
+m_street
+```
+
+### Mouse Interaction Handling
+
+```python
+from ipyleaflet import Map, Marker
+from ipywidgets import HTML, VBox
+
+# Create map with interaction handling
+m = Map(center=nashik_center, zoom=11)
+
+# Create HTML widget to display coordinates
+coord_display = HTML(value="Click on the map to see coordinates")
+
+# Handle click events
+def handle_click(event=None, coordinates=None, **kwargs):
+    if coordinates:
+        lat, lon = coordinates
+        coord_display.value = f"Clicked at: Latitude {lat:.4f}, Longitude {lon:.4f}"
+        
+        # Add marker at clicked location
+        click_marker = Marker(location=[lat, lon], title=f"Clicked: {lat:.4f}, {lon:.4f}")
+        m.add_layer(click_marker)
+
+# Handle mouse move events
+def handle_mousemove(event=None, coordinates=None, **kwargs):
+    if coordinates:
+        lat, lon = coordinates
+        coord_display.value = f"Mouse at: Latitude {lat:.4f}, Longitude {lon:.4f}"
+
+# Attach event handlers
+m.on_interaction(handle_click)
+# m.on_interaction(handle_mousemove)  # Uncomment for mouse move tracking
+
+# Display map with coordinate display
+VBox([m, coord_display])
+```
+
+### Add Overlay Vector Layer
+
+```python
+from ipyleaflet import GeoData
+import json
+
+# Create sample vector data around Nashik
+nashik_points = [
+    {'name': 'Nashik City Center', 'coords': [19.9975, 73.7898]},
+    {'name': 'Sula Vineyards', 'coords': [19.9615, 73.7850]},
+    {'name': 'Pandavleni Caves', 'coords': [20.0104, 73.7749]},
+    {'name': 'Ramkund', 'coords': [19.9929, 73.7840]}
+]
+
+# Create GeoDataFrame
+geometry = [Point(coord[1], coord[0]) for coord in [p['coords'] for p in nashik_points]]
+nashik_gdf = gpd.GeoDataFrame(
+    [p['name'] for p in nashik_points],
+    geometry=geometry,
+    columns=['name'],
+    crs='EPSG:4326'
+)
+
+# Create map
+m = Map(center=nashik_center, zoom=11)
+
+# Add vector layer
+geo_data = GeoData(
+    geo_dataframe=nashik_gdf,
+    style={
+        'color': 'red',
+        'radius': 8,
+        'fillColor': 'red',
+        'fillOpacity': 0.7,
+        'weight': 2
+    },
+    hover_style={
+        'color': 'blue',
+        'fillColor': 'blue',
+        'fillOpacity': 1.0
+    },
+    point_style={
+        'radius': 10,
+        'color': 'red',
+        'fillOpacity': 0.8,
+        'fillColor': 'red',
+        'weight': 3
+    }
+)
+
+m.add_layer(geo_data)
+m
+```
+
+### Adding Controls
+
+```python
+from ipyleaflet import Map, ScaleControl, FullScreenControl, LayersControl, MeasureControl
+
+# Create map with various controls
+m = Map(center=nashik_center, zoom=11)
+
+# Add scale control
+scale_control = ScaleControl(position='bottomleft')
+m.add_control(scale_control)
+
+# Add fullscreen control
+fullscreen_control = FullScreenControl()
+m.add_control(fullscreen_control)
 
 # Add measure control
-m.add_measure_control()
-
-# Add reference data
-m.add_gdf(
-    world,
-    layer_name='Countries',
-    fill_colors=['lightgray'],
-    line_colors=['black']
+measure_control = MeasureControl(
+    position='topleft',
+    active_color='orange',
+    completed_color='red'
 )
+m.add_control(measure_control)
+
+# Add some layers for layer control
+m.add_layer(geo_data)  # From previous example
+
+# Add layers control
+layers_control = LayersControl(position='topright')
+m.add_control(layers_control)
 
 m
 ```
 
-### Split Map Comparison
+### Creating Two Maps Side by Side
 
 ```python
-# Create split map for comparison
-m = leafmap.Map(center=[40, -100], zoom=4)
+from ipywidgets import HBox
 
-# Add different basemaps to left and right
-m.split_map(
-    left_layer='Esri.WorldImagery',
-    right_layer='OpenStreetMap'
+# Create two maps
+map1 = Map(
+    center=nashik_center,
+    zoom=11,
+    basemap=basemaps.OpenStreetMap.Mapnik,
+    layout={'width': '50%', 'height': '400px'}
 )
 
+map2 = Map(
+    center=nashik_center,
+    zoom=11,
+    basemap=basemaps.Esri.WorldImagery,
+    layout={'width': '50%', 'height': '400px'}
+)
+
+# Add markers to both maps
+for point in nashik_points:
+    marker1 = Marker(location=point['coords'], title=point['name'])
+    marker2 = Marker(location=point['coords'], title=point['name'])
+    map1.add_layer(marker1)
+    map2.add_layer(marker2)
+
+# Display side by side
+HBox([map1, map2])
+```
+
+### Adding Static Popup
+
+```python
+from ipyleaflet import Popup
+
+# Create map
+m = Map(center=nashik_center, zoom=12)
+
+# Create static popup
+popup_content = HTML(
+    value="""
+    <div style='width: 200px;'>
+        <h3>Nashik</h3>
+        <p><strong>State:</strong> Maharashtra</p>
+        <p><strong>Population:</strong> ~1.5 million</p>
+        <p><strong>Famous for:</strong> Wine capital of India</p>
+        <p><strong>Rivers:</strong> Godavari</p>
+    </div>
+    """
+)
+
+# Create popup
+static_popup = Popup(
+    location=nashik_center,
+    child=popup_content,
+    close_button=False,
+    auto_close=False,
+    close_on_escape_key=False
+)
+
+# Add popup to map
+m.add_layer(static_popup)
 m
 ```
 
-## Practice Problems
+### Using Custom Data in Popup
+
+```python
+# Create map with custom popup data
+m = Map(center=nashik_center, zoom=11)
+
+# Custom data for Nashik attractions
+nashik_attractions = [
+    {
+        'name': 'Sula Vineyards',
+        'coords': [19.9615, 73.7850],
+        'type': 'Winery',
+        'rating': 4.5,
+        'description': 'Famous vineyard and wine tasting destination',
+        'established': 1999
+    },
+    {
+        'name': 'Pandavleni Caves',
+        'coords': [20.0104, 73.7749],
+        'type': 'Historical Site',
+        'rating': 4.2,
+        'description': 'Ancient Buddhist caves dating back to 3rd century BC',
+        'established': '3rd Century BC'
+    },
+    {
+        'name': 'Ramkund',
+        'coords': [19.9929, 73.7840],
+        'type': 'Religious Site',
+        'rating': 4.0,
+        'description': 'Sacred bathing ghat on Godavari river',
+        'established': 'Ancient'
+    }
+]
+
+# Function to create custom popup
+def create_custom_popup(attraction):
+    popup_html = f"""
+    <div style='width: 250px; font-family: Arial;'>
+        <h3 style='color: #2E8B57; margin-bottom: 10px;'>{attraction['name']}</h3>
+        <p><strong>Type:</strong> {attraction['type']}</p>
+        <p><strong>Rating:</strong> {'⭐' * int(attraction['rating'])} ({attraction['rating']}/5)</p>
+        <p><strong>Established:</strong> {attraction['established']}</p>
+        <p style='font-style: italic;'>{attraction['description']}</p>
+        <hr>
+        <p style='font-size: 12px; color: #666;'>
+            📍 {attraction['coords'][0]:.4f}, {attraction['coords'][1]:.4f}
+        </p>
+    </div>
+    """
+    return HTML(value=popup_html)
+
+# Add markers with custom popups
+for attraction in nashik_attractions:
+    # Create marker
+    marker = Marker(
+        location=attraction['coords'],
+        title=attraction['name']
+    )
+    
+    # Create custom popup
+    popup = Popup(
+        location=attraction['coords'],
+        child=create_custom_popup(attraction),
+        close_button=True,
+        auto_close=True,
+        max_width=300
+    )
+    
+    # Link popup to marker
+    marker.popup = popup
+    
+    # Add to map
+    m.add_layer(marker)
+
+# Add title
+title_html = HTML(
+    value="<h2 style='text-align: center; color: #2E8B57;'>Nashik Tourist Attractions</h2>"
+)
+
+# Display with title
+VBox([title_html, m])
+```
+
+### Advanced Interactive Features
+
+```python
+from ipyleaflet import DrawControl
+from ipywidgets import Output
+
+# Create map with drawing capabilities
+m = Map(center=nashik_center, zoom=10)
+
+# Create output widget for displaying drawn features
+output = Output()
+
+# Create draw control
+draw_control = DrawControl(
+    polygon={'shapeOptions': {'color': '#6bc2e5', 'weight': 4, 'opacity': 1.0}},
+    polyline={'shapeOptions': {'color': '#6bc2e5', 'weight': 4, 'opacity': 1.0}},
+    circle={'shapeOptions': {'fillColor': '#efed69', 'color': 'black', 'fillOpacity': 1.0}},
+    rectangle={'shapeOptions': {'fillColor': '#fca45d', 'color': 'black', 'fillOpacity': 1.0}},
+)
+
+# Handle draw events
+def handle_draw(target, action, geo_json):
+    with output:
+        print(f"Action: {action}")
+        print(f"GeoJSON: {geo_json}")
+        if action == 'created':
+            print(f"New {geo_json['geometry']['type']} created")
+        elif action == 'deleted':
+            print("Feature deleted")
+        print("-" * 50)
+
+draw_control.on_draw(handle_draw)
+m.add_control(draw_control)
+
+# Display map with output
+VBox([m, output])
+```
 
 ### Problem 1: Regional Analysis Map
 Create a comprehensive map of a specific region:

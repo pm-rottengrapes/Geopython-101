@@ -52,10 +52,10 @@ graph LR
 - Handling NoData values
 - **Practice**: Elevation analysis, multi-criteria suitability
 
-### [Module 5: Visualization & Web Apps](05_visualization_streamlit.md)
+### [Module 5: Visualization & Web Apps](05_visualization.md)
 - Static maps with matplotlib
 - Interactive maps with Folium
-- Building dashboards with Streamlit
+- Building dashboards with leafmap
 - User interface design
 - **Practice**: Population dashboard, city explorer
 

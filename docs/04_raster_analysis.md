@@ -14,7 +14,19 @@ icon: material/grid
 
 ## Introduction to Raster Data
 
-**Raster data** represents continuous phenomena as a grid of cells (pixels), where each cell contains a value representing some measurement or classification.
+**Raster data** represents continuous phenomena as a grid of cells (pixels), where each cell contains a value representing some measurement or classification. Think of it as a digital photograph where each pixel has a specific value instead of a color.
+
+### Key Raster Concepts
+
+**Grid Structure**: Rasters are organized in rows and columns, creating a matrix of cells. Each cell represents a specific geographic area on Earth's surface.
+
+**Resolution**: The size of each pixel, typically measured in meters. A 30m resolution means each pixel represents a 30m × 30m area on the ground.
+
+**Extent**: The geographic boundary of the raster, defined by minimum and maximum X and Y coordinates.
+
+**Coordinate Reference System (CRS)**: Defines how the raster's coordinates relate to locations on Earth.
+
+**NoData Values**: Special values (like -9999) that represent areas with no data or invalid measurements.
 
 ```mermaid
 graph TD
@@ -30,11 +42,87 @@ graph TD
 ```
 
 ### Common Raster Data Types
-- **Elevation models** (DEMs) - terrain height
-- **Satellite imagery** - multispectral data
-- **Climate data** - temperature, precipitation
-- **Population density** - people per area
-- **Land cover** - vegetation, urban areas
+
+**Digital Elevation Models (DEMs)**: Store terrain height values, essential for topographic analysis, watershed modeling, and visibility studies.
+
+**Satellite Imagery**: Multispectral data capturing different wavelengths of light. Each band represents different portions of the electromagnetic spectrum:
+
+- **Visible bands** (Red, Green, Blue): What human eyes can see
+- **Near-Infrared (NIR)**: Useful for vegetation analysis
+- **Thermal bands**: Measure surface temperature
+- **Radar bands**: Can penetrate clouds and work day/night
+
+**Climate Data**: Temperature, precipitation, humidity measurements over time and space.
+
+**Population Density**: Number of people per unit area, often derived from census data.
+
+**Land Cover/Land Use**: Classification of Earth's surface (forest, urban, water, agriculture).
+
+### Raster vs Vector Data
+
+| Aspect | Raster | Vector |
+|--------|--------|---------|
+| **Structure** | Grid of cells | Points, lines, polygons |
+| **Best for** | Continuous phenomena | Discrete objects |
+| **Storage** | Fixed grid size | Variable based on complexity |
+| **Analysis** | Mathematical operations | Geometric operations |
+| **Examples** | Temperature, elevation | Roads, boundaries, buildings |
+
+### Understanding Raster Resolution
+
+**Spatial Resolution**: The ground distance represented by each pixel
+
+- **High resolution** (1-5m): Detailed analysis, small areas
+- **Medium resolution** (10-30m): Regional studies, land cover mapping
+- **Low resolution** (100m-1km): Global studies, climate modeling
+
+**Temporal Resolution**: How often data is collected
+
+- **Daily**: Weather data, some satellites
+- **Weekly/Monthly**: Vegetation monitoring
+- **Annual**: Land cover change detection
+
+**Spectral Resolution**: Number and width of spectral bands
+
+- **Panchromatic**: Single band (black and white)
+- **Multispectral**: 3-10 bands (RGB + infrared)
+- **Hyperspectral**: 100+ narrow bands
+
+### Raster File Formats
+
+**GeoTIFF (.tif/.tiff)**: Most common format, supports georeferencing and multiple bands
+
+**NetCDF (.nc)**: Excellent for scientific data with multiple dimensions (time, depth)
+
+**HDF (.hdf)**: Hierarchical format for complex scientific datasets
+
+**JPEG2000 (.jp2)**: Compressed format with good quality retention
+
+**ESRI Grid**: Proprietary format used by ArcGIS
+
+### Raster Coordinate Systems
+
+**Geographic Coordinates**: Latitude/longitude in degrees
+- Good for: Global datasets, web mapping
+- Units: Decimal degrees
+- Example: WGS84 (EPSG:4326)
+
+**Projected Coordinates**: Flat map projections in linear units
+- Good for: Area calculations, distance measurements
+- Units: Meters, feet
+- Example: UTM zones, State Plane
+
+### Raster Data Quality Considerations
+
+**Accuracy**: How close values are to true measurements
+
+**Precision**: Consistency of repeated measurements
+
+**Completeness**: Percentage of area covered (vs NoData)
+
+**Currency**: How recent the data is
+
+**Lineage**: Documentation of data sources and processing steps
 
 ## Setting Up the Environment
 
@@ -52,11 +140,26 @@ warnings.filterwarnings('ignore')
 
 # Set up plotting
 plt.style.use('default')
+
+# Data directory path - change this if your TIFF files are in a different folder
+DATA_DIR = 'data/'
+
+# Load available raster data
+dem_path = DATA_DIR + 'dem.tif'
+b04_path = DATA_DIR + 'B04.tif'  # Red band
+b08_path = DATA_DIR + 'B08.tif'  # NIR band
+true_color_path = DATA_DIR + 'true_color.tiff'
+
+print("=== LOADING RASTER DATA ===")
+print(f"DEM: {dem_path}")
+print(f"Red Band (B04): {b04_path}")
+print(f"NIR Band (B08): {b08_path}")
+print(f"True Color: {true_color_path}")
 ```
 
 ## 1. Understanding Raster Structure
 
-### Raster Components
+### Raster Components Deep Dive
 
 ```mermaid
 graph LR
@@ -70,54 +173,104 @@ graph LR
     C --> I[Data Type]
 ```
 
-### Creating Sample Raster Data
+**Metadata** contains crucial information about the raster:
 
-Since we're working in a cloud environment, let's create sample raster data to demonstrate concepts:
+- **CRS (Coordinate Reference System)**: Defines the spatial reference
+- **Transform**: Mathematical relationship between pixel coordinates and geographic coordinates
+- **Dimensions**: Number of rows, columns, and bands
+- **NoData Value**: Represents missing or invalid data
+
+**Data Array** holds the actual pixel values:
+
+- **Data Type**: Integer (int16, int32) or floating-point (float32, float64)
+- **Bit Depth**: Determines value range (8-bit: 0-255, 16-bit: 0-65535)
+- **Signed vs Unsigned**: Whether negative values are allowed
+
+### Understanding the Affine Transform
+
+The **affine transform** is a 6-parameter mathematical transformation that converts pixel coordinates to geographic coordinates:
+
+```
+| x |   | a  b  c | | col |
+| y | = | d  e  f | |  row |
+| 1 |   | 0  0  1 | |  1  |
+```
+
+Where:
+
+- **a**: Pixel width (x-direction)
+- **b**: Row rotation (usually 0)
+- **c**: X-coordinate of upper-left corner
+- **d**: Column rotation (usually 0) 
+- **e**: Pixel height (y-direction, usually negative)
+- **f**: Y-coordinate of upper-left corner
+
+### Pixel Indexing and Coordinates
+
+**Pixel Coordinates**: Array indices (row, column) starting from (0,0) at top-left
+
+**Geographic Coordinates**: Real-world coordinates (X, Y) in the raster's CRS
+
+**Center vs Corner**: Pixels can be referenced by their center point or corner
+
+### Data Types and Memory Considerations
+
+| Data Type | Range | Memory per Pixel | Best Use |
+|-----------|-------|------------------|----------|
+| uint8 | 0-255 | 1 byte | Classified data, RGB images |
+| int16 | -32,768 to 32,767 | 2 bytes | Elevation, temperature |
+| uint16 | 0-65,535 | 2 bytes | Satellite imagery |
+| float32 | ±3.4 × 10³⁸ | 4 bytes | Calculated values, ratios |
+| float64 | ±1.8 × 10³⁰⁸ | 8 bytes | High-precision calculations |
+
+### Loading Real Raster Data
 
 ```python
-# Create sample elevation data
-def create_sample_elevation(width=100, height=100):
-    """Create a sample elevation raster"""
-    # Create coordinate grids
-    x = np.linspace(-10, 10, width)
-    y = np.linspace(-10, 10, height)
-    X, Y = np.meshgrid(x, y)
-    
-    # Create elevation surface (combination of functions)
-    elevation = (
-        1000 * np.exp(-(X**2 + Y**2) / 20) +  # Central peak
-        500 * np.sin(X/2) * np.cos(Y/2) +     # Rolling hills
-        200 * np.random.random((height, width)) # Random noise
-    )
-    
-    return elevation.astype(np.float32)
+# Load the DEM (Digital Elevation Model)
+with rasterio.open(dem_path) as dem_src:
+    elevation_data = dem_src.read(1)  # Read first band
+    dem_transform = dem_src.transform
+    dem_crs = dem_src.crs
+    dem_bounds = dem_src.bounds
+    dem_nodata = dem_src.nodata
 
-# Create sample data
-elevation_data = create_sample_elevation(200, 150)
-
-print("=== SAMPLE ELEVATION DATA ===")
+print("=== DEM DATA PROPERTIES ===")
 print(f"Shape: {elevation_data.shape}")
 print(f"Data type: {elevation_data.dtype}")
-print(f"Min elevation: {elevation_data.min():.1f}m")
-print(f"Max elevation: {elevation_data.max():.1f}m")
-print(f"Mean elevation: {elevation_data.mean():.1f}m")
+print(f"CRS: {dem_crs}")
+print(f"Bounds: {dem_bounds}")
+print(f"NoData value: {dem_nodata}")
+
+# Handle NoData values
+if dem_nodata is not None:
+    elevation_masked = np.ma.masked_equal(elevation_data, dem_nodata)
+    print(f"Valid pixels: {elevation_masked.count():,}")
+    print(f"NoData pixels: {elevation_masked.mask.sum():,}")
+    # Use masked array for statistics
+    print(f"Min elevation: {elevation_masked.min():.1f}m")
+    print(f"Max elevation: {elevation_masked.max():.1f}m")
+    print(f"Mean elevation: {elevation_masked.mean():.1f}m")
+else:
+    print(f"Min elevation: {elevation_data.min():.1f}m")
+    print(f"Max elevation: {elevation_data.max():.1f}m")
+    print(f"Mean elevation: {elevation_data.mean():.1f}m")
 ```
 
 ### Raster Metadata and Transform
 
 ```python
-from rasterio.transform import from_bounds
-
-# Define spatial properties for our sample data
-bounds = (-10, -10, 10, 10)  # (left, bottom, right, top)
+# Use the actual transform from the DEM
+transform = dem_transform
+bounds = dem_bounds
 height, width = elevation_data.shape
-transform = from_bounds(*bounds, width, height)
 
 print("=== RASTER SPATIAL PROPERTIES ===")
 print(f"Bounds: {bounds}")
 print(f"Transform: {transform}")
 print(f"Pixel size X: {transform[0]:.4f}")
 print(f"Pixel size Y: {abs(transform[4]):.4f}")
+print(f"Width: {width} pixels")
+print(f"Height: {height} pixels")
 
 # Calculate pixel coordinates
 def pixel_to_coord(row, col, transform):
@@ -130,6 +283,10 @@ def pixel_to_coord(row, col, transform):
 center_row, center_col = height // 2, width // 2
 center_x, center_y = pixel_to_coord(center_row, center_col, transform)
 print(f"Center pixel ({center_row}, {center_col}) = ({center_x:.2f}, {center_y:.2f})")
+
+# Calculate extent for plotting
+extent = [bounds.left, bounds.right, bounds.bottom, bounds.top]
+print(f"Plot extent: {extent}")
 ```
 
 ## 2. Visualizing Raster Data
@@ -583,68 +740,73 @@ print(slope_zonal_stats.round(2))
 **NDVI (Normalized Difference Vegetation Index)** is calculated using Near-Infrared (NIR) and Red bands to assess vegetation health.
 
 ```python
-# Create sample NIR (Band 8) and Red (Band 4) data
-def create_sample_satellite_bands(width=200, height=150):
-    """Create sample NIR and Red band data"""
-    x = np.linspace(-10, 10, width)
-    y = np.linspace(-10, 10, height)
-    X, Y = np.meshgrid(x, y)
-    
-    # Simulate NIR band (Band 8) - higher values for vegetation
-    nir_band = (
-        0.6 + 0.3 * np.exp(-(X**2 + Y**2) / 15) +  # Vegetation areas
-        0.1 * np.random.random((height, width))     # Noise
-    )
-    
-    # Simulate Red band (Band 4) - lower values for vegetation
-    red_band = (
-        0.3 + 0.1 * np.exp(-(X**2 + Y**2) / 15) +  # Less reflection in vegetation
-        0.1 * np.random.random((height, width))     # Noise
-    )
-    
-    # Ensure values are between 0 and 1 (typical for reflectance)
-    nir_band = np.clip(nir_band, 0, 1)
-    red_band = np.clip(red_band, 0, 1)
-    
-    return nir_band.astype(np.float32), red_band.astype(np.float32)
+# Load the satellite bands
+with rasterio.open(b08_path) as nir_src:
+    nir_data = nir_src.read(1).astype(float)  # NIR band (B08)
+    nir_transform = nir_src.transform
+    nir_bounds = nir_src.bounds
+    nir_nodata = nir_src.nodata
 
-# Create sample bands
-nir_data, red_data = create_sample_satellite_bands()
+with rasterio.open(b04_path) as red_src:
+    red_data = red_src.read(1).astype(float)  # Red band (B04)
+    red_transform = red_src.transform
+    red_bounds = red_src.bounds
+    red_nodata = red_src.nodata
 
 print("=== SATELLITE BAND DATA ===")
 print(f"NIR Band shape: {nir_data.shape}")
 print(f"Red Band shape: {red_data.shape}")
-print(f"NIR range: {nir_data.min():.3f} - {nir_data.max():.3f}")
-print(f"Red range: {red_data.min():.3f} - {red_data.max():.3f}")
+print(f"NIR range: {nir_data.min():.0f} - {nir_data.max():.0f}")
+print(f"Red range: {red_data.min():.0f} - {red_data.max():.0f}")
+print(f"NIR NoData: {nir_nodata}")
+print(f"Red NoData: {red_nodata}")
+
+# Handle NoData values and convert to reflectance (0-1 scale)
+if nir_nodata is not None:
+    nir_data = np.where(nir_data == nir_nodata, np.nan, nir_data)
+if red_nodata is not None:
+    red_data = np.where(red_data == red_nodata, np.nan, red_data)
+
+# Convert to reflectance if needed (assuming values are in 0-10000 range)
+if nir_data.max() > 1:
+    nir_data = nir_data / 10000.0
+if red_data.max() > 1:
+    red_data = red_data / 10000.0
+
+print(f"NIR reflectance range: {np.nanmin(nir_data):.3f} - {np.nanmax(nir_data):.3f}")
+print(f"Red reflectance range: {np.nanmin(red_data):.3f} - {np.nanmax(red_data):.3f}")
 
 # Calculate NDVI
 def calculate_ndvi(nir, red):
     """Calculate NDVI from NIR and Red bands"""
     # Avoid division by zero
     denominator = nir + red
-    ndvi = np.where(denominator != 0, (nir - red) / denominator, 0)
+    ndvi = np.where(denominator != 0, (nir - red) / denominator, np.nan)
     return ndvi
 
 ndvi = calculate_ndvi(nir_data, red_data)
 
-print(f"\nNDVI range: {ndvi.min():.3f} - {ndvi.max():.3f}")
-print(f"Mean NDVI: {ndvi.mean():.3f}")
+print(f"\nNDVI range: {np.nanmin(ndvi):.3f} - {np.nanmax(ndvi):.3f}")
+print(f"Mean NDVI: {np.nanmean(ndvi):.3f}")
+
+# Calculate extent for plotting
+band_extent = [nir_bounds.left, nir_bounds.right, nir_bounds.bottom, nir_bounds.top]
 
 # Visualize bands and NDVI
 fig, axes = plt.subplots(2, 2, figsize=(15, 12))
 
 # NIR Band
-im1 = axes[0,0].imshow(nir_data, cmap='Reds', extent=bounds)
+im1 = axes[0,0].imshow(nir_data, cmap='Reds', extent=band_extent)
 axes[0,0].set_title('NIR Band (B08)')
 plt.colorbar(im1, ax=axes[0,0], label='Reflectance')
 
 # Red Band
-im2 = axes[0,1].imshow(red_data, cmap='Reds', extent=bounds)
+im2 = axes[0,1].imshow(red_data, cmap='Reds', extent=band_extent)
 axes[0,1].set_title('Red Band (B04)')
 plt.colorbar(im2, ax=axes[0,1], label='Reflectance')
 
 # NDVI
-im3 = axes[1,0].imshow(ndvi, cmap='RdYlGn', vmin=-1, vmax=1, extent=bounds)
+im3 = axes[1,0].imshow(ndvi, cmap='RdYlGn', vmin=-1, vmax=1, extent=band_extent)
 axes[1,0].set_title('NDVI (Vegetation Index)')
 plt.colorbar(im3, ax=axes[1,0], label='NDVI Value')
 
@@ -659,7 +821,7 @@ class_labels = ['Water/Bare', 'Low Veg', 'Moderate Veg', 'High Veg']
 from matplotlib.colors import ListedColormap
 class_cmap = ListedColormap(class_colors)
 
-im4 = axes[1,1].imshow(ndvi_classes, cmap=class_cmap, extent=bounds)
+im4 = axes[1,1].imshow(ndvi_classes, cmap=class_cmap, extent=band_extent)
 axes[1,1].set_title('NDVI Classification')
 cbar = plt.colorbar(im4, ax=axes[1,1], ticks=[0, 1, 2, 3])
 cbar.set_ticklabels(class_labels)
@@ -680,99 +842,118 @@ for i, label in enumerate(class_labels):
 **True Color Composite** uses Red, Green, and Blue bands to create natural-looking images.
 
 ```python
-# Create sample RGB bands
-def create_sample_rgb_bands(width=200, height=150):
-    """Create sample Red, Green, Blue band data"""
-    x = np.linspace(-10, 10, width)
-    y = np.linspace(-10, 10, height)
-    X, Y = np.meshgrid(x, y)
+# Load the true color composite
+with rasterio.open(true_color_path) as rgb_src:
+    rgb_data = rgb_src.read()  # Read all bands
+    rgb_transform = rgb_src.transform
+    rgb_bounds = rgb_src.bounds
+    rgb_nodata = rgb_src.nodata
     
-    # Create different patterns for each band
-    # Red band - higher in certain areas
-    red = 0.3 + 0.4 * np.exp(-((X-2)**2 + (Y-2)**2) / 10) + 0.1 * np.random.random((height, width))
+print("=== TRUE COLOR COMPOSITE DATA ===")
+print(f"RGB data shape: {rgb_data.shape}")
+print(f"Number of bands: {rgb_data.shape[0]}")
+print(f"Image dimensions: {rgb_data.shape[1]} x {rgb_data.shape[2]}")
+print(f"Data type: {rgb_data.dtype}")
+print(f"NoData value: {rgb_nodata}")
+
+# Handle the data for visualization
+if rgb_data.shape[0] >= 3:
+    # Extract RGB bands (assuming order is R, G, B)
+    red_band = rgb_data[0].astype(float)
+    green_band = rgb_data[1].astype(float)
+    blue_band = rgb_data[2].astype(float)
     
-    # Green band - vegetation areas
-    green = 0.4 + 0.5 * np.exp(-(X**2 + Y**2) / 15) + 0.1 * np.random.random((height, width))
+    # Handle NoData values
+    if rgb_nodata is not None:
+        red_band = np.where(red_band == rgb_nodata, np.nan, red_band)
+        green_band = np.where(green_band == rgb_nodata, np.nan, green_band)
+        blue_band = np.where(blue_band == rgb_nodata, np.nan, blue_band)
     
-    # Blue band - water-like areas
-    blue = 0.2 + 0.6 * np.exp(-((X+3)**2 + (Y-1)**2) / 8) + 0.1 * np.random.random((height, width))
+    print(f"Red band range: {np.nanmin(red_band):.0f} - {np.nanmax(red_band):.0f}")
+    print(f"Green band range: {np.nanmin(green_band):.0f} - {np.nanmax(green_band):.0f}")
+    print(f"Blue band range: {np.nanmin(blue_band):.0f} - {np.nanmax(blue_band):.0f}")
     
-    # Normalize to 0-1 range
-    red = np.clip(red, 0, 1)
-    green = np.clip(green, 0, 1)
-    blue = np.clip(blue, 0, 1)
+    # Create RGB composite
+    def create_rgb_composite(red, green, blue, enhance=True):
+        """Create RGB composite from three bands"""
+        # Normalize to 0-1 range if needed
+        if red.max() > 1:
+            red = red / np.nanmax(red)
+        if green.max() > 1:
+            green = green / np.nanmax(green)
+        if blue.max() > 1:
+            blue = blue / np.nanmax(blue)
+            
+        # Stack bands into 3D array
+        rgb = np.dstack((red, green, blue))
+        
+        if enhance:
+            # Enhance contrast (stretch to full 0-1 range)
+            for i in range(3):
+                band = rgb[:, :, i]
+                band_min, band_max = np.nanmin(band), np.nanmax(band)
+                if band_max > band_min:
+                    rgb[:, :, i] = (band - band_min) / (band_max - band_min)
+        
+        return rgb
     
-    return red.astype(np.float32), green.astype(np.float32), blue.astype(np.float32)
-
-# Create RGB bands
-red_band, green_band, blue_band = create_sample_rgb_bands()
-
-print("=== RGB BAND DATA ===")
-print(f"Red band range: {red_band.min():.3f} - {red_band.max():.3f}")
-print(f"Green band range: {green_band.min():.3f} - {green_band.max():.3f}")
-print(f"Blue band range: {blue_band.min():.3f} - {blue_band.max():.3f}")
-
-# Create RGB composite
-def create_rgb_composite(red, green, blue, enhance=True):
-    """Create RGB composite from three bands"""
-    # Stack bands into 3D array
-    rgb = np.dstack((red, green, blue))
+    # Create composites
+    rgb_natural = create_rgb_composite(red_band, green_band, blue_band, enhance=False)
+    rgb_enhanced = create_rgb_composite(red_band, green_band, blue_band, enhance=True)
     
-    if enhance:
-        # Enhance contrast (stretch to full 0-1 range)
-        for i in range(3):
-            band = rgb[:, :, i]
-            band_min, band_max = band.min(), band.max()
-            if band_max > band_min:
-                rgb[:, :, i] = (band - band_min) / (band_max - band_min)
+    # Calculate extent for plotting
+    rgb_extent = [rgb_bounds.left, rgb_bounds.right, rgb_bounds.bottom, rgb_bounds.top]
     
-    return rgb
-
-# Create composites
-rgb_natural = create_rgb_composite(red_band, green_band, blue_band, enhance=False)
-rgb_enhanced = create_rgb_composite(red_band, green_band, blue_band, enhance=True)
-
-# Visualize individual bands and composites
-fig, axes = plt.subplots(2, 3, figsize=(18, 12))
-
-# Individual bands
-im1 = axes[0,0].imshow(red_band, cmap='Reds', extent=bounds)
-axes[0,0].set_title('Red Band')
-plt.colorbar(im1, ax=axes[0,0], label='Reflectance')
-
-im2 = axes[0,1].imshow(green_band, cmap='Greens', extent=bounds)
-axes[0,1].set_title('Green Band')
-plt.colorbar(im2, ax=axes[0,1], label='Reflectance')
-
-im3 = axes[0,2].imshow(blue_band, cmap='Blues', extent=bounds)
-axes[0,2].set_title('Blue Band')
-plt.colorbar(im3, ax=axes[0,2], label='Reflectance')
-
-# RGB composites
-axes[1,0].imshow(rgb_natural, extent=bounds)
-axes[1,0].set_title('Natural Color Composite')
-
-axes[1,1].imshow(rgb_enhanced, extent=bounds)
-axes[1,1].set_title('Enhanced Color Composite')
-
-# False color composite (NIR-Red-Green)
-false_color = create_rgb_composite(nir_data, red_data, green_band)
-axes[1,2].imshow(false_color, extent=bounds)
-axes[1,2].set_title('False Color Composite\n(NIR-Red-Green)')
-
-plt.tight_layout()
-plt.show()
-
-# Band statistics
-print("\n=== BAND STATISTICS ===")
-bands = {'Red': red_band, 'Green': green_band, 'Blue': blue_band, 'NIR': nir_data}
-
-for band_name, band_data in bands.items():
-    print(f"{band_name} Band:")
-    print(f"  Mean: {band_data.mean():.3f}")
-    print(f"  Std:  {band_data.std():.3f}")
-    print(f"  Min:  {band_data.min():.3f}")
-    print(f"  Max:  {band_data.max():.3f}")
+    # Visualize individual bands and composites
+    fig, axes = plt.subplots(2, 3, figsize=(18, 12))
+    
+    # Individual bands
+    im1 = axes[0,0].imshow(red_band, cmap='Reds', extent=rgb_extent)
+    axes[0,0].set_title('Red Band')
+    plt.colorbar(im1, ax=axes[0,0], label='Digital Number')
+    
+    im2 = axes[0,1].imshow(green_band, cmap='Greens', extent=rgb_extent)
+    axes[0,1].set_title('Green Band')
+    plt.colorbar(im2, ax=axes[0,1], label='Digital Number')
+    
+    im3 = axes[0,2].imshow(blue_band, cmap='Blues', extent=rgb_extent)
+    axes[0,2].set_title('Blue Band')
+    plt.colorbar(im3, ax=axes[0,2], label='Digital Number')
+    
+    # RGB composites
+    axes[1,0].imshow(rgb_natural, extent=rgb_extent)
+    axes[1,0].set_title('Natural Color Composite')
+    
+    axes[1,1].imshow(rgb_enhanced, extent=rgb_extent)
+    axes[1,1].set_title('Enhanced Color Composite')
+    
+    # False color composite (NIR-Red-Green) if NIR data is available
+    if 'nir_data' in locals() and nir_data.shape == red_band.shape:
+        false_color = create_rgb_composite(nir_data, red_band, green_band)
+        axes[1,2].imshow(false_color, extent=rgb_extent)
+        axes[1,2].set_title('False Color Composite\n(NIR-Red-Green)')
+    else:
+        axes[1,2].text(0.5, 0.5, 'NIR data not available\nfor false color composite', 
+                      ha='center', va='center', transform=axes[1,2].transAxes)
+        axes[1,2].set_title('False Color Composite\n(Not Available)')
+    
+    plt.tight_layout()
+    plt.show()
+    
+    # Band statistics
+    print("\n=== BAND STATISTICS ===")
+    bands = {'Red': red_band, 'Green': green_band, 'Blue': blue_band}
+    if 'nir_data' in locals():
+        bands['NIR'] = nir_data
+    
+    for band_name, band_data in bands.items():
+        print(f"{band_name} Band:")
+        print(f"  Mean: {np.nanmean(band_data):.1f}")
+        print(f"  Std:  {np.nanstd(band_data):.1f}")
+        print(f"  Min:  {np.nanmin(band_data):.1f}")
+        print(f"  Max:  {np.nanmax(band_data):.1f}")
+else:
+    print("Error: True color composite does not have enough bands for RGB visualization")
 ```
 
 
